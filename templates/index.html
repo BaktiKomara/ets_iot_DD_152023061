@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>IoT Dashboard</title>
+  <style>
+    body { font-family: Arial, sans-serif; text-align: center; padding: 20px; background: #f8f9fa; }
+    h1 { margin-bottom: 30px; }
+    .card { display: inline-block; margin: 10px; padding: 20px; border-radius: 10px; background: white; box-shadow: 0 2px 8px rgba(0,0,0,0.1); width: 200px; }
+    h2 { margin-bottom: 10px; }
+    button { padding: 10px 20px; margin: 5px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; }
+    .on { background-color: #28a745; color: white; }
+    .off { background-color: #dc3545; color: white; }
+
+    table { margin: 20px auto; border-collapse: collapse; width: 90%; background: white; box-shadow: 0 2px 8px rgba(0,0,0,0.1);}
+    th, td { padding: 10px; border: 1px solid #ddd; text-align: center; }
+    th { background-color: #343a40; color: white; }
+    tr:nth-child(even) { background-color: #f2f2f2; }
+  </style>
+</head>
+<body>
+  <h1>🌤️ IoT Sensor Dashboard</h1>
+
+  <!-- Cards for latest sensor data -->
+  <div class="card">
+    <h2>Temperature</h2>
+    <p id="temp">-- °C</p>
+  </div>
+
+  <div class="card">
+    <h2>Humidity</h2>
+    <p id="hum">-- %</p>
+  </div>
+
+  <div class="card">
+    <h2>Light (Lux)</h2>
+    <p id="lux">-- lx</p>
+  </div>
+
+  <div class="card">
+    <h2>Relay Control</h2>
+    <p id="relay">--</p>
+    <button class="on" onclick="setRelay('ON')">ON</button>
+    <button class="off" onclick="setRelay('OFF')">OFF</button>
+  </div>
+
+  <!-- Table for sensor log -->
+  <h2>Sensor Data Log</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>Temperature (°C)</th>
+        <th>Humidity (%)</th>
+        <th>Lux</th>
+        <th>Timestamp</th>
+      </tr>
+    </thead>
+    <tbody id="logBody">
+      <tr><td colspan="5">Loading...</td></tr>
+    </tbody>
+  </table>
+
+  <script>
+    async function fetchData() {
+      try {
+        const res = await fetch('/data');
+        const data = await res.json();
+
+        // Ambil data sensor terbaru (record pertama adalah terbaru)
+        if (data.records && data.records.length > 0) {
+          const latest = data.records[0];
+          document.getElementById('temp').textContent = latest.suhu + " °C";
+          document.getElementById('hum').textContent = latest.humidity + " %";
+          document.getElementById('lux').textContent = latest.lux + " lx";
+        }
+
+        // Tampilkan log data
+        const logBody = document.getElementById('logBody');
+        logBody.innerHTML = "";
+        if (data.records && data.records.length > 0) {
+          data.records.forEach(record => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+              <td>${record.id}</td>
+              <td>${record.suhu}</td>
+              <td>${record.humidity}</td>
+              <td>${record.lux}</td>
+              <td>${record.timestamp}</td>
+            `;
+            logBody.appendChild(tr);
+          });
+        } else {
+          logBody.innerHTML = '<tr><td colspan="5">Belum ada data</td></tr>';
+        }
+
+      } catch (err) {
+        console.error("Error fetching data:", err);
+      }
+    }
+
+    async function setRelay(state) {
+      try {
+        const res = await fetch('/relay', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ state })
+        });
+        const result = await res.json();
+        console.log(result);
+        fetchData(); // refresh display
+      } catch (err) {
+        console.error("Error setting relay:", err);
+      }
+    }
+
+    // Ambil data setiap 2 detik
+    setInterval(fetchData, 2000);
+    fetchData();
+  </script>
+</body>
+</html>
